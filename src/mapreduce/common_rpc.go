@@ -48,6 +48,8 @@ type RegisterArgs struct {
 // please use call() to send all RPCs. please don't change this
 // function.
 //
+
+// srv = worker's address
 func call(srv string, rpcname string,
 	args interface{}, reply interface{}) bool {
 	c, errx := rpc.Dial("unix", srv)

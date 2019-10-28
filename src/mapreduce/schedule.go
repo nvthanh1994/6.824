@@ -34,12 +34,43 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 	// Your code here (Part III, Part IV).
 	//
 
-	// Create task, push to channel
-	var wg sync.WaitGroup
+	taskChan := make(chan int, ntasks)
+	wg := sync.WaitGroup{}
 	wg.Add(ntasks)
+	// Producer
+	go func(){
+		for i := 0; i < ntasks; i++ {
+			taskChan <- i
+		}
+	}()
 
-	// Concurrently process that task
-
-
+	// Consumer
+	go func() {
+		for task := range taskChan {
+			args := DoTaskArgs{
+				JobName:       jobName,
+				File:          "",
+				Phase:         phase,
+				TaskNumber:    task,
+				NumOtherPhase: n_other,
+			}
+			if phase == mapPhase {
+				args.File = mapFiles[task]
+			}
+			// Consume
+			go func(task int) {
+				worker := <-registerChan
+				if done := call(worker, "Worker.DoTask", args, nil); done {
+					fmt.Println("Debug - Done task ", phase, task)
+					wg.Done()
+					registerChan <- worker
+				} else {
+					fmt.Println("Debug - Fail to execute task, sendback job to job queue")
+					taskChan <- task
+				}
+			}(task)
+		}
+	}()
+	wg.Wait()
 	fmt.Printf("Schedule: %v done\n", phase)
 }
